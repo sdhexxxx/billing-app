@@ -92,7 +92,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .search-inner svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);width:18px;height:18px;stroke:var(--text3);stroke-width:2}
 .search-inner input{width:100%;padding:10px 12px 10px 36px;border:1px solid var(--border2);border-radius:var(--radius);font-size:15px;background:var(--surface);color:var(--text)}
 .prod-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;padding:4px 16px}
-.prod-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px;cursor:pointer;position:relative;transition:border-color .15s}
+.prod-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px;cursor:pointer;position:relative;transition:border-color .15s;display:flex;flex-direction:column;justify-content:between}
 .prod-card:active{transform:scale(.97)}
 .prod-emoji{font-size:30px;margin-bottom:6px;display:block}
 .prod-name{font-size:13px;font-weight:600;margin-bottom:2px;line-height:1.3}
@@ -100,6 +100,9 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .prod-stock{font-size:11px;color:var(--text3);margin-top:2px}
 .prod-bc{font-size:10px;color:var(--text3);font-family:monospace;margin-top:1px}
 .qty-badge{position:absolute;top:8px;right:8px;background:var(--accent);color:#fff;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700}
+.card-actions{display:flex;justify-content:space-between;align-items:center;margin-top:8px;gap:6px}
+.btn-card-add{background:var(--accent);color:#fff;border:none;padding:5px 10px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer}
+.btn-card-edit{background:var(--surface2);color:var(--text2);border:1px solid var(--border);padding:5px 8px;border-radius:6px;font-size:11px;cursor:pointer}
 .fab{position:fixed;bottom:82px;right:calc(50% - 200px);background:var(--accent);color:#fff;border:none;border-radius:50%;width:52px;height:52px;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 14px rgba(37,99,235,.4);font-size:28px;z-index:50}
 
 /* cart */
@@ -131,7 +134,9 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .r-row{display:flex;justify-content:space-between;font-size:13px;padding:4px 0;color:var(--text2)}
 .r-total{display:flex;justify-content:space-between;font-size:15px;font-weight:700;border-top:1px solid var(--border);margin-top:8px;padding-top:8px}
 .r-footer{text-align:center;border-top:1px dashed var(--border2);margin-top:14px;padding-top:12px;font-size:12px;color:var(--text3)}
-.new-sale-btn{display:block;width:calc(100% - 32px);margin:12px 16px 0;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);padding:14px;font-size:15px;font-weight:700;cursor:pointer;text-align:center}
+.receipt-actions{display:flex;flex-direction:column;gap:8px;margin:12px 16px}
+.print-btn{width:100%;background:var(--success);color:#fff;border:none;border-radius:var(--radius);padding:14px;font-size:15px;font-weight:700;cursor:pointer;text-align:center}
+.new-sale-btn{width:100%;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);padding:14px;font-size:15px;font-weight:700;cursor:pointer;text-align:center;margin:0}
 
 /* modal */
 .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;display:flex;align-items:flex-end;max-width:430px;left:50%;transform:translateX(-50%)}
@@ -143,6 +148,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .form-group input,.form-group select{width:100%;padding:11px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:15px;background:var(--surface);color:var(--text)}
 .form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .modal-save{width:100%;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);padding:14px;font-size:15px;font-weight:700;cursor:pointer;margin-top:4px}
+.modal-delete{width:100%;background:var(--danger-light);color:var(--danger);border:1px solid var(--danger);border-radius:var(--radius);padding:12px;font-size:14px;font-weight:600;cursor:pointer;margin-top:8px}
 
 /* settings */
 .settings-group{background:var(--surface);border-top:1px solid var(--border);border-bottom:1px solid var(--border);margin-bottom:8px}
@@ -158,6 +164,13 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .sr-arrow svg{width:16px;height:16px;stroke:var(--text3);stroke-width:2}
 .cloud-status{display:flex;align-items:center;gap:6px;font-size:12px;padding:8px 16px;color:var(--success);font-weight:500}
 .cloud-dot{width:8px;height:8px;background:var(--success);border-radius:50%}
+
+/* Print styling */
+@media print {
+  body * { visibility: hidden; }
+  .receipt-card, .receipt-card * { visibility: visible; }
+  .receipt-card { position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 10px; border: none; }
+}
 </style>
 </head>
 <body>
@@ -233,6 +246,9 @@ let searchQ = '';
 let codeReader = null, scanning = false, torchOn = false;
 let lastScanned = '', scanCooldown = false;
 
+// Total Sales tracked locally via localStorage for persistence
+let totalSalesAmount = parseFloat(localStorage.getItem('totalSalesAmount') || '0');
+
 const SETTINGS = {
   shopName: localStorage.getItem('shopName') || 'My Shop',
   address: localStorage.getItem('shopAddress') || 'Kolkata, WB',
@@ -251,7 +267,7 @@ function addToCart(p) {
   if (ex) ex.qty++;
   else cart.push({ ...p, qty: 1 });
   updateCartBadge();
-  if (currentTab !== 'scan') render();
+  if (currentTab !== 'scan' && currentTab !== 'products') render();
 }
 
 function removeFromCart(id) {
@@ -272,6 +288,7 @@ function updateCartBadge() {
 let toastTimer;
 function showToast(msg, type = '') {
   const t = document.getElementById('toast');
+  if(!t) return;
   t.textContent = msg;
   t.className = 'toast show ' + type;
   clearTimeout(toastTimer);
@@ -428,6 +445,10 @@ function manualLookup() {
 
 /* ===== PRODUCTS ===== */
 async function renderProducts() {
+  // Clear any existing active FAB first
+  const existingFab = document.querySelector('.fab');
+  if (existingFab) existingFab.remove();
+
   document.getElementById('content').innerHTML = `<div class="loader"><div class="spinner"></div></div>`;
   try {
     products = await DB.getProducts();
@@ -450,24 +471,30 @@ async function renderProducts() {
   filtered.forEach(p => {
     const q = cartQty(p.id);
     const safeP = JSON.stringify(p).replace(/"/g, '&quot;');
-    html += `<div class="prod-card" onclick="addToCart(${safeP});this.querySelector('.qty-badge')&&(this.querySelector('.qty-badge').textContent=${q+1}||render())">
+    html += `<div class="prod-card">
       <span class="prod-emoji">${p.emoji || '📦'}</span>
       <div class="prod-name">${p.name}</div>
       <div class="prod-price">₹${p.price}</div>
       <div class="prod-stock">${p.stock} in stock</div>
       ${p.barcode ? `<div class="prod-bc">${p.barcode}</div>` : ''}
       ${q > 0 ? `<div class="qty-badge">${q}</div>` : ''}
+      <div class="card-actions">
+        <button class="btn-card-edit" onclick="showEditModal(${safeP})">Edit</button>
+        <button class="btn-card-add" onclick="addToCart(${safeP}); renderProducts()">+ Cart</button>
+      </div>
     </div>`;
   });
   html += `</div>`;
   document.getElementById('content').innerHTML = html;
 
-  const fab = document.createElement('button');
-  fab.className = 'fab';
-  fab.title = 'Add product';
-  fab.innerHTML = `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`;
-  fab.onclick = showAddModal;
-  document.querySelector('.app').appendChild(fab);
+  if (currentTab === 'products') {
+    const fab = document.createElement('button');
+    fab.className = 'fab';
+    fab.title = 'Add product';
+    fab.innerHTML = `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`;
+    fab.onclick = showAddModal;
+    document.querySelector('.app').appendChild(fab);
+  }
 }
 
 function showAddModal() {
@@ -519,8 +546,69 @@ async function saveProduct() {
   }
 }
 
+/* ===== EDIT PRODUCT MODAL ===== */
+function showEditModal(p) {
+  const old = document.getElementById('edit-modal');
+  if (old) old.remove();
+  const emojis = ['📦','🌾','🥛','🍞','🥚','🍬','🫙','🍵','🍎','🥤','🧴','🧹','🧀','🍫','🥩','🫒'];
+  document.querySelector('.app').insertAdjacentHTML('beforeend', `
+    <div class="modal-bg" id="edit-modal" onclick="if(event.target===this)this.remove()">
+      <div class="modal-sheet">
+        <div class="modal-handle"></div>
+        <div class="modal-title">Product এডিট করুন</div>
+        <div class="form-group"><label>Product নাম *</label><input id="ep-name" value="${p.name}" /></div>
+        <div class="form-row">
+          <div class="form-group"><label>দাম (₹) *</label><input id="ep-price" type="number" value="${p.price}" inputmode="decimal"/></div>
+          <div class="form-group"><label>Stock পরিমাণ</label><input id="ep-stock" type="number" value="${p.stock}" inputmode="numeric"/></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Barcode</label><input id="ep-barcode" value="${p.barcode || ''}" inputmode="numeric"/></div>
+          <div class="form-group"><label>Icon</label>
+            <select id="ep-emoji">${emojis.map(e => `<option value="${e}" ${p.emoji===e?'selected':''}>${e}</option>`).join('')}</select>
+          </div>
+        </div>
+        <button class="modal-save" onclick="updateProduct(${p.id})">Supabase-এ Update করুন</button>
+        <button class="modal-delete" onclick="deleteProduct(${p.id})">Product টি মুছুন (Delete)</button>
+      </div>
+    </div>`);
+}
+
+async function updateProduct(id) {
+  const name = document.getElementById('ep-name').value.trim();
+  const price = parseFloat(document.getElementById('ep-price').value) || 0;
+  const stock = parseInt(document.getElementById('ep-stock').value) || 0;
+  const barcode = document.getElementById('ep-barcode').value.trim();
+  const emoji = document.getElementById('ep-emoji').value;
+
+  if (!name || !price) { showToast('নাম ও দাম দেওয়া আবশ্যক', 'err'); return; }
+
+  try {
+    await DB.updateProduct(id, { name, price, stock, barcode, emoji });
+    document.getElementById('edit-modal').remove();
+    showToast('Product আপডেট হয়েছে!', 'ok');
+    await renderProducts();
+  } catch(e) {
+    showToast('আপডেট করা যায়নি।', 'err');
+  }
+}
+
+async function deleteProduct(id) {
+  if(!confirm('আপনি কি নিশ্চিতভাবে এই প্রোডাক্টটি ডিলিট করতে চান?')) return;
+  try {
+    await DB.deleteProduct(id);
+    document.getElementById('edit-modal').remove();
+    showToast('Product ডিলিট হয়েছে', 'ok');
+    await renderProducts();
+  } catch(e) {
+    showToast('ডিলিট করা যায়নি।', 'err');
+  }
+}
+
 /* ===== CART ===== */
 function renderCart() {
+  const existingFab = document.querySelector('.fab');
+  if (existingFab) existingFab.remove();
+
   if (cart.length === 0) {
     document.getElementById('content').innerHTML = `
       <div class="empty-state">
@@ -551,9 +639,39 @@ function renderCart() {
     <div class="sum-row"><span>Subtotal</span><span>₹${sub}</span></div>
     <div class="sum-row"><span>GST (${SETTINGS.taxPct}%)</span><span>₹${tax}</span></div>
     <div class="sum-total"><span>Total</span><span>₹${total}</span></div>
-    <button class="checkout-btn" onclick="showReceipt=true;render()">Checkout — ₹${total}</button>
+    <button class="checkout-btn" onclick="processCheckout()">Checkout — ₹${total}</button>
   </div>`;
   document.getElementById('content').innerHTML = html;
+}
+
+/* ===== PROCESS CHECKOUT & DEDUCT STOCK ===== */
+async function processCheckout() {
+  const btn = document.querySelector('.checkout-btn');
+  btn.textContent = 'Processing...';
+  btn.disabled = true;
+
+  try {
+    // Deduct stock from Supabase for each item in the cart
+    for (let item of cart) {
+      const liveProd = products.find(p => p.id === item.id);
+      if (liveProd) {
+        const newStock = Math.max(0, liveProd.stock - item.qty);
+        await DB.updateProduct(item.id, { stock: newStock });
+      }
+    }
+    
+    // Add to Total Sales
+    const totalWithTax = cartTotal() + Math.round(cartTotal() * SETTINGS.taxPct / 100);
+    totalSalesAmount += totalWithTax;
+    localStorage.setItem('totalSalesAmount', totalSalesAmount.toString());
+
+    showReceipt = true;
+    render();
+  } catch(e) {
+    showToast('Stock আপডেট করা যায়নি। ইন্টারনেট চেক করুন।', 'err');
+    btn.textContent = `Checkout — ₹${cartTotal()}`;
+    btn.disabled = false;
+  }
 }
 
 /* ===== RECEIPT ===== */
@@ -579,13 +697,29 @@ function renderReceipt() {
       <div class="r-total"><span>Total</span><span>₹${total}</span></div>
       <div class="r-footer">${SETTINGS.shopName}-এ আসার জন্য ধন্যবাদ!${SETTINGS.gst ? `<br>GST: ${SETTINGS.gst}` : ''}</div>
     </div>
-    <button class="new-sale-btn" onclick="cart=[];showReceipt=false;switchTab('scan')">নতুন sale শুরু করুন</button>`;
+    <div class="receipt-actions">
+      <button class="print-btn" onclick="window.print()">Print Invoice</button>
+      <button class="new-sale-btn" onclick="cart=[];showReceipt=false;switchTab('scan')">নতুন sale শুরু করুন</button>
+    </div>`;
 }
 
 /* ===== SETTINGS ===== */
 function renderSettings() {
+  const existingFab = document.querySelector('.fab');
+  if (existingFab) existingFab.remove();
+
   document.getElementById('content').innerHTML = `
     <div class="cloud-status"><div class="cloud-dot"></div> Supabase cloud-এ connected</div>
+    
+    <div class="sec-title">Sales Analytics (বিক্রি)</div>
+    <div class="settings-group">
+      <div class="settings-row" style="background: var(--success-light)">
+        <div class="sr-icon ic-green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+        <div class="sr-text"><h3 style="color: var(--success); font-weight:700">Total Sell (মোট বিক্রি)</h3><p style="font-size:16px; font-weight:700; color:var(--text)">₹${totalSalesAmount.toFixed(2)}</p></div>
+        <button onclick="resetSales()" style="background:transparent; border:none; color:var(--danger); font-size:11px; font-weight:600; cursor:pointer">Reset</button>
+      </div>
+    </div>
+
     <div class="sec-title">Shop details</div>
     <div class="settings-group">
       <div class="settings-row" onclick="editSetting('shopName','Shop নাম','${SETTINGS.shopName}')">
@@ -638,6 +772,15 @@ function editSetting(key, label, current) {
   localStorage.setItem(key, val);
   renderSettings();
   showToast('Saved!', 'ok');
+}
+
+function resetSales() {
+  if (confirm('আপনি কি মোট বিক্রির (Total Sell) হিসাব রিসেট করতে চান?')) {
+    totalSalesAmount = 0;
+    localStorage.setItem('totalSalesAmount', '0');
+    renderSettings();
+    showToast('Sales analytics reseted!', 'ok');
+  }
 }
 
 async function clearAllProducts() {
