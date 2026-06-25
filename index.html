@@ -160,7 +160,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .sr-icon{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center}
 .ic-blue{background:var(--accent-light)} .ic-green{background:var(--success-light)} .ic-orange{background:var(--warning-light)} .ic-red{background:var(--danger-light)}
 .sr-icon svg{width:20px;height:20px;stroke-width:1.8}
-.ic-blue svg{stroke:var(--accent)} .ic-green svg:stroke:var(--success)} .ic-orange svg{stroke:var(--warning)} .ic-red svg{stroke:var(--danger)}
+.ic-blue svg{stroke:var(--accent)} .ic-green svg{stroke:var(--success)} .ic-orange svg{stroke:var(--warning)} .ic-red svg{stroke:var(--danger)}
 .sr-text{flex:1}
 .sr-text h3{font-size:15px;font-weight:500}
 .sr-text p{font-size:12px;color:var(--text3);margin-top:1px}
@@ -259,12 +259,32 @@ const SETTINGS = {
   taxPct: parseFloat(localStorage.getItem('taxPct') || '5'),
 };
 
+// Function to generate professional beep sound using Web Audio API
+function playBeep() {
+  try {
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const oscillator = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+
+    oscillator.type = 'sine';
+    oscillator.frequency.setValueAtTime(1200, audioCtx.currentTime); // Standard POS Scanner Frequency
+    gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime); // Standard Volume Level
+
+    oscillator.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+
+    oscillator.start();
+    oscillator.stop(audioCtx.currentTime + 0.08); // 80 milliseconds short beep
+  } catch (e) {
+    console.error("Audio beep failed to play:", e);
+  }
+}
+
 function cartCount() { return cart.reduce((s, i) => s + i.qty, 0); }
 function cartTotal() { return cart.reduce((s, i) => s + i.price * i.qty, 0); }
 function cartQty(id) { const i = cart.find(x => x.id === id); return i ? i.qty : 0; }
 
-function addToCart(p) {
-  // Check if selection exceeds available stock
+function addToCart(p, triggerSound = false) {
   const currentInCart = cartQty(p.id);
   if (p.stock <= 0 || currentInCart >= p.stock) {
     showToast('স্টক শেষ! আর যোগ করা যাবে না।', 'err');
@@ -274,6 +294,9 @@ function addToCart(p) {
   const ex = cart.find(x => x.id === p.id);
   if (ex) ex.qty++;
   else cart.push({ ...p, qty: 1 });
+  
+  if (triggerSound) playBeep(); // Trigger sound on successful addition
+  
   updateCartBadge();
   if (currentTab !== 'scan' && currentTab !== 'products') render();
   return true;
@@ -342,7 +365,7 @@ function renderScanner() {
           <div class="qty-ctrl">
             <button class="qbtn" onclick="removeFromCart(${i.id});renderScanner()">−</button>
             <span class="qnum">${i.qty}</span>
-            <button class="qbtn" onclick="addToCart(${JSON.stringify(i).replace(/"/g,'&quot;')});renderScanner()">+</button>
+            <button class="qbtn" onclick="addToCart(${JSON.stringify(i).replace(/"/g,'&quot;')}, false);renderScanner()">+</button>
           </div>
         </div>`).join('')}
     </div>
@@ -443,7 +466,7 @@ function showScanToast(msg, ok) {
 function lookupAndAdd(code) {
   const p = products.find(x => x.barcode === code.trim());
   if (p) { 
-    const added = addToCart(p); 
+    const added = addToCart(p, true); // Play beep when scanned successfully
     if (added) {
       showScanToast(`${p.name} — ₹${p.price}`, true); 
       renderScanner(); 
@@ -500,7 +523,7 @@ async function renderProducts() {
       ${q > 0 ? `<div class="qty-badge">${q}</div>` : ''}
       <div class="card-actions">
         <button class="btn-card-edit" onclick="showEditModal(${safeP})">Edit</button>
-        <button class="btn-card-add" ${isOutOfStock ? 'disabled' : ''} onclick="addToCart(${safeP}); renderProducts()">
+        <button class="btn-card-add" ${isOutOfStock ? 'disabled' : ''} onclick="addToCart(${safeP}, true); renderProducts()">
           ${isOutOfStock ? 'Empty' : '+ Cart'}
         </button>
       </div>
@@ -653,7 +676,7 @@ function renderCart() {
       <div class="qty-ctrl">
         <button class="qbtn" onclick="removeFromCart(${i.id})">−</button>
         <span class="qnum">${i.qty}</span>
-        <button class="qbtn" onclick="addToCart(${JSON.stringify(i).replace(/"/g,'&quot;')})">+</button>
+        <button class="qbtn" onclick="addToCart(${JSON.stringify(i).replace(/"/g,'&quot;')}, false)">+</button>
       </div>
     </div>`;
   });
