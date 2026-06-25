@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Billing App">
+<title>Billing App</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --accent:#2563eb;--accent-light:#eff6ff;--accent-dark:#1d4ed8;
+  --success:#16a34a;--success-light:#f0fdf4;
+  --danger:#dc2626;--danger-light:#fef2f2;
+  --warning:#d97706;--warning-light:#fffbeb;
+  --bg:#f8fafc;--surface:#fff;--surface2:#f1f5f9;
+  --border:#e2e8f0;--border2:#cbd5e1;
+  --text:#0f172a;--text2:#475569;--text3:#94a3b8;
+  --radius:10px;--font:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;max-width:430px;margin:0 auto}
+.app{display:flex;flex-direction:column;min-height:100vh}
+
+/* topbar */
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.topbar h1{font-size:17px;font-weight:600;letter-spacing:-.3px}
+.tb-btn{background:none;border:none;cursor:pointer;color:var(--text);font-size:24px;padding:4px;border-radius:8px;display:flex;align-items:center;position:relative}
+.cart-dot{position:absolute;top:0;right:0;background:var(--accent);color:#fff;border-radius:50%;width:18px;height:18px;font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center}
+
+/* bottom nav */
+.bottomnav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:var(--surface);border-top:1px solid var(--border);display:flex;z-index:100;padding-bottom:env(safe-area-inset-bottom)}
+.nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 0 12px;border:none;background:none;cursor:pointer;color:var(--text3);font-size:10px;font-weight:500}
+.nav-btn.active{color:var(--accent)}
+.nav-btn svg{width:22px;height:22px;stroke-width:1.8}
+
+.content{flex:1;overflow-y:auto;padding-bottom:90px}
+
+/* loader / toast */
+.loader{display:flex;align-items:center;justify-content:center;padding:60px 16px;flex-direction:column;gap:12px;color:var(--text3)}
+.spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.toast{position:fixed;top:70px;left:50%;transform:translateX(-50%);background:#1e293b;color:#fff;border-radius:var(--radius);padding:10px 18px;font-size:13px;font-weight:500;z-index:999;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity .2s}
+.toast.show{opacity:1}
+.toast.ok{background:#15803d}
+.toast.err{background:#dc2626}
+
+/* scanner */
+.scanner-box{position:relative;background:#000;width:100%;aspect-ratio:1;overflow:hidden}
+.scanner-box video{width:100%;height:100%;object-fit:cover;display:block}
+.scan-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+.scan-frame{width:62%;aspect-ratio:1;position:relative}
+.scan-corner{position:absolute;width:24px;height:24px;border-color:#60a5fa;border-style:solid}
+.sc-tl{top:0;left:0;border-width:3px 0 0 3px;border-radius:6px 0 0 6px}
+.sc-tr{top:0;right:0;border-width:3px 3px 0 0;border-radius:0 6px 0 0}
+.sc-bl{bottom:0;left:0;border-width:0 0 3px 3px;border-radius:0 0 0 6px}
+.sc-br{bottom:0;right:0;border-width:0 3px 3px 0;border-radius:0 0 6px 0}
+.scan-line{position:absolute;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,#60a5fa,transparent);animation:scanline 2s ease-in-out infinite}
+@keyframes scanline{0%,100%{top:8%}50%{top:88%}}
+.scan-tip{position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.65);color:#fff;font-size:13px;text-align:center;padding:10px 16px}
+.scan-toast{position:absolute;top:10px;left:10px;right:10px;border-radius:8px;padding:10px 14px;font-size:14px;font-weight:600;display:flex;align-items:center;gap:8px;opacity:0;transition:opacity .2s}
+.scan-toast.show{opacity:1}
+.scan-toast.ok{background:rgba(21,128,61,.92);color:#fff}
+.scan-toast.miss{background:rgba(185,28,28,.92);color:#fff}
+.scan-controls{display:flex;gap:10px;padding:12px 16px 0}
+.scan-btn{flex:1;background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius);padding:10px 12px;font-size:13px;font-weight:500;cursor:pointer;color:var(--text);display:flex;align-items:center;justify-content:center;gap:6px}
+.scan-btn.torch-on{background:var(--warning-light);border-color:var(--warning);color:var(--warning)}
+.manual-wrap{padding:12px 16px 0}
+.manual-wrap label{font-size:12px;color:var(--text2);font-weight:500;display:block;margin-bottom:5px}
+.manual-row{display:flex;gap:8px}
+.manual-row input{flex:1;padding:10px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:15px;background:var(--surface);color:var(--text)}
+.manual-row button{background:var(--accent);color:#fff;border:none;border-radius:var(--radius);padding:10px 16px;font-size:14px;font-weight:600;cursor:pointer}
+
+/* section title */
+.sec-title{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;padding:16px 16px 6px}
+
+/* cart mini list */
+.mini-list{padding:0 16px 16px}
+.mini-item{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)}
+.mini-item:last-child{border-bottom:none}
+.mi-emoji{font-size:24px}
+.mi-info{flex:1}
+.mi-name{font-size:14px;font-weight:500}
+.mi-price{font-size:12px;color:var(--text2)}
+.qty-ctrl{display:flex;align-items:center;gap:6px}
+.qbtn{background:var(--surface2);border:1px solid var(--border);border-radius:6px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;color:var(--text);font-weight:600}
+.qnum{font-size:14px;font-weight:600;min-width:20px;text-align:center}
+
+/* products */
+.search-wrap{padding:10px 16px;position:sticky;top:57px;background:var(--bg);z-index:10}
+.search-inner{position:relative}
+.search-inner svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);width:18px;height:18px;stroke:var(--text3);stroke-width:2}
+.search-inner input{width:100%;padding:10px 12px 10px 36px;border:1px solid var(--border2);border-radius:var(--radius);font-size:15px;background:var(--surface);color:var(--text)}
+.prod-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;padding:4px 16px}
+.prod-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px;cursor:pointer;position:relative;transition:border-color .15s}
+.prod-card:active{transform:scale(.97)}
+.prod-emoji{font-size:30px;margin-bottom:6px;display:block}
+.prod-name{font-size:13px;font-weight:600;margin-bottom:2px;line-height:1.3}
+.prod-price{font-size:13px;color:var(--accent);font-weight:600}
+.prod-stock{font-size:11px;color:var(--text3);margin-top:2px}
+.prod-bc{font-size:10px;color:var(--text3);font-family:monospace;margin-top:1px}
+.qty-badge{position:absolute;top:8px;right:8px;background:var(--accent);color:#fff;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700}
+.fab{position:fixed;bottom:82px;right:calc(50% - 200px);background:var(--accent);color:#fff;border:none;border-radius:50%;width:52px;height:52px;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 14px rgba(37,99,235,.4);font-size:28px;z-index:50}
+
+/* cart */
+.cart-header{background:var(--surface);border-bottom:1px solid var(--border);padding:10px 16px}
+.cart-header p{font-size:13px;color:var(--text2)}
+.cart-item{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--border)}
+.ci-info{flex:1}
+.ci-name{font-size:14px;font-weight:600}
+.ci-price{font-size:12px;color:var(--text2);margin-top:1px}
+.summary{background:var(--surface);border-top:1px solid var(--border);padding:16px}
+.sum-row{display:flex;justify-content:space-between;font-size:14px;padding:3px 0;color:var(--text2)}
+.sum-total{display:flex;justify-content:space-between;font-size:18px;font-weight:700;color:var(--text);border-top:1px solid var(--border);margin-top:8px;padding-top:10px}
+.checkout-btn{width:100%;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);padding:15px;font-size:16px;font-weight:700;cursor:pointer;margin-top:12px;letter-spacing:-.2px}
+.empty-state{display:flex;flex-direction:column;align-items:center;padding:70px 16px;gap:10px;color:var(--text3);text-align:center}
+.empty-state svg{width:56px;height:56px;stroke:var(--text3);stroke-width:1.5}
+.empty-state p{font-size:15px}
+.empty-state small{font-size:13px}
+.go-scan-btn{background:var(--accent-light);color:var(--accent);border:1px solid var(--accent);border-radius:var(--radius);padding:10px 20px;font-size:14px;font-weight:600;cursor:pointer;margin-top:8px}
+
+/* receipt */
+.receipt-success{text-align:center;padding:24px 16px 8px}
+.receipt-success svg{width:52px;height:52px;stroke:var(--success);stroke-width:1.5}
+.receipt-success p{font-size:16px;font-weight:600;margin-top:8px;color:var(--text)}
+.receipt-card{background:var(--surface);margin:12px 16px;border-radius:14px;border:1px solid var(--border);padding:20px}
+.rh{text-align:center;border-bottom:1px dashed var(--border2);padding-bottom:14px;margin-bottom:14px}
+.rh h2{font-size:18px;font-weight:700}
+.rh p{font-size:12px;color:var(--text2);margin-top:2px}
+.rh small{font-size:11px;color:var(--text3);margin-top:6px;display:block}
+.r-row{display:flex;justify-content:space-between;font-size:13px;padding:4px 0;color:var(--text2)}
+.r-total{display:flex;justify-content:space-between;font-size:15px;font-weight:700;border-top:1px solid var(--border);margin-top:8px;padding-top:8px}
+.r-footer{text-align:center;border-top:1px dashed var(--border2);margin-top:14px;padding-top:12px;font-size:12px;color:var(--text3)}
+.new-sale-btn{display:block;width:calc(100% - 32px);margin:12px 16px 0;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);padding:14px;font-size:15px;font-weight:700;cursor:pointer;text-align:center}
+
+/* modal */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;display:flex;align-items:flex-end;max-width:430px;left:50%;transform:translateX(-50%)}
+.modal-sheet{background:var(--surface);border-radius:20px 20px 0 0;padding:0 16px calc(20px + env(safe-area-inset-bottom));width:100%;max-height:90vh;overflow-y:auto}
+.modal-handle{width:36px;height:4px;background:var(--border2);border-radius:2px;margin:12px auto 16px}
+.modal-title{font-size:17px;font-weight:700;margin-bottom:16px}
+.form-group{margin-bottom:12px}
+.form-group label{font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:5px;text-transform:uppercase;letter-spacing:.4px}
+.form-group input,.form-group select{width:100%;padding:11px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:15px;background:var(--surface);color:var(--text)}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.modal-save{width:100%;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);padding:14px;font-size:15px;font-weight:700;cursor:pointer;margin-top:4px}
+
+/* settings */
+.settings-group{background:var(--surface);border-top:1px solid var(--border);border-bottom:1px solid var(--border);margin-bottom:8px}
+.settings-row{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--border)}
+.settings-row:last-child{border-bottom:none}
+.sr-icon{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center}
+.ic-blue{background:var(--accent-light)} .ic-green{background:var(--success-light)} .ic-orange{background:var(--warning-light)} .ic-red{background:var(--danger-light)}
+.sr-icon svg{width:20px;height:20px;stroke-width:1.8}
+.ic-blue svg{stroke:var(--accent)} .ic-green svg{stroke:var(--success)} .ic-orange svg{stroke:var(--warning)} .ic-red svg{stroke:var(--danger)}
+.sr-text{flex:1}
+.sr-text h3{font-size:15px;font-weight:500}
+.sr-text p{font-size:12px;color:var(--text3);margin-top:1px}
+.sr-arrow svg{width:16px;height:16px;stroke:var(--text3);stroke-width:2}
+.cloud-status{display:flex;align-items:center;gap:6px;font-size:12px;padding:8px 16px;color:var(--success);font-weight:500}
+.cloud-dot{width:8px;height:8px;background:var(--success);border-radius:50%}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar" id="topbar">
+    <span style="width:32px"></span>
+    <h1 id="topbar-title">Scan & Bill</h1>
+    <button class="tb-btn" id="cart-btn" onclick="switchTab('cart')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+      <span class="cart-dot" id="cart-dot" style="display:none">0</span>
+    </button>
+  </div>
+
+  <div class="content" id="content">
+    <div class="loader"><div class="spinner"></div><p>Loading...</p></div>
+  </div>
+
+  <nav class="bottomnav">
+    <button class="nav-btn active" id="nav-scan" onclick="switchTab('scan')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2M8 12h8M12 8v8"/></svg>
+      Scan
+    </button>
+    <button class="nav-btn" id="nav-products" onclick="switchTab('products')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+      Products
+    </button>
+    <button class="nav-btn" id="nav-cart" onclick="switchTab('cart')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg>
+      Cart
+    </button>
+    <button class="nav-btn" id="nav-settings" onclick="switchTab('settings')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      Settings
+    </button>
+  </nav>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://unpkg.com/@zxing/library@0.19.3/umd/index.min.js"></script>
+<script>
+const SUPABASE_URL = 'https://xhaeojqwhsslhcmxpwlq.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhoYWVvanF3aHNzbGhjbXhwd2xxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0MTE5MTEsImV4cCI6MjA5Nzk4NzkxMX0.NqftixknKMfBq8p0v1CO6EAWMtwDgdXh3AS7iD0lDwk';
+
+const api = async (method, path, body) => {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    method,
+    headers: {
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${SUPABASE_KEY}`,
+      'Content-Type': 'application/json',
+      'Prefer': method === 'POST' ? 'return=representation' : ''
+    },
+    body: body ? JSON.stringify(body) : undefined
+  });
+  if (!res.ok) throw new Error(await res.text());
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
+};
+
+const DB = {
+  getProducts: () => api('GET', 'products?select=*&order=created_at.asc'),
+  addProduct: (p) => api('POST', 'products', p),
+  deleteProduct: (id) => api('DELETE', `products?id=eq.${id}`),
+  updateProduct: (id, data) => api('PATCH', `products?id=eq.${id}`, data),
+};
+
+let products = [];
+let cart = [];
+let currentTab = 'scan';
+let showReceipt = false;
+let searchQ = '';
+let codeReader = null, scanning = false, torchOn = false;
+let lastScanned = '', scanCooldown = false;
+
+const SETTINGS = {
+  shopName: localStorage.getItem('shopName') || 'My Shop',
+  address: localStorage.getItem('shopAddress') || 'Kolkata, WB',
+  phone: localStorage.getItem('shopPhone') || '9800000000',
+  gst: localStorage.getItem('shopGST') || '',
+  currency: '₹',
+  taxPct: parseFloat(localStorage.getItem('taxPct') || '5'),
+};
+
+function cartCount() { return cart.reduce((s, i) => s + i.qty, 0); }
+function cartTotal() { return cart.reduce((s, i) => s + i.price * i.qty, 0); }
+function cartQty(id) { const i = cart.find(x => x.id === id); return i ? i.qty : 0; }
+
+function addToCart(p) {
+  const ex = cart.find(x => x.id === p.id);
+  if (ex) ex.qty++;
+  else cart.push({ ...p, qty: 1 });
+  updateCartBadge();
+  if (currentTab !== 'scan') render();
+}
+
+function removeFromCart(id) {
+  const ex = cart.find(x => x.id === id);
+  if (!ex) return;
+  if (ex.qty > 1) ex.qty--;
+  else cart = cart.filter(x => x.id !== id);
+  updateCartBadge();
+  render();
+}
+
+function updateCartBadge() {
+  const cnt = cartCount();
+  const dot = document.getElementById('cart-dot');
+  if (dot) { dot.textContent = cnt; dot.style.display = cnt > 0 ? 'flex' : 'none'; }
+}
+
+let toastTimer;
+function showToast(msg, type = '') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.className = 'toast', 2200);
+}
+
+async function switchTab(tab) {
+  if (tab !== 'scan') stopScanner();
+  currentTab = tab;
+  showReceipt = false;
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  const nb = document.getElementById('nav-' + tab);
+  if (nb) nb.classList.add('active');
+  await render();
+  if (tab === 'scan') setTimeout(startScanner, 300);
+}
+
+async function render() {
+  updateCartBadge();
+  const titles = { scan: 'Scan & Bill', products: 'Products', cart: showReceipt ? 'Receipt' : 'Cart', settings: 'Settings' };
+  document.getElementById('topbar-title').textContent = titles[currentTab] || '';
+  document.getElementById('cart-btn').style.display = currentTab === 'cart' ? 'none' : 'flex';
+
+  if (currentTab === 'scan') renderScanner();
+  else if (currentTab === 'products') await renderProducts();
+  else if (currentTab === 'cart') showReceipt ? renderReceipt() : renderCart();
+  else renderSettings();
+}
+
+/* ===== SCANNER ===== */
+function renderScanner() {
+  const miniCart = cart.length > 0 ? `
+    <div class="sec-title">Cart — ${cartCount()} item${cartCount() !== 1 ? 's' : ''}</div>
+    <div class="mini-list">
+      ${cart.map(i => `
+        <div class="mini-item">
+          <span class="mi-emoji">${i.emoji}</span>
+          <div class="mi-info">
+            <div class="mi-name">${i.name}</div>
+            <div class="mi-price">${SETTINGS.currency}${i.price} × ${i.qty} = ${SETTINGS.currency}${i.price * i.qty}</div>
+          </div>
+          <div class="qty-ctrl">
+            <button class="qbtn" onclick="removeFromCart(${i.id});renderScanner()">−</button>
+            <span class="qnum">${i.qty}</span>
+            <button class="qbtn" onclick="addToCart(${JSON.stringify(i).replace(/"/g,'&quot;')});renderScanner()">+</button>
+          </div>
+        </div>`).join('')}
+    </div>
+    <div style="padding:0 16px 16px">
+      <button onclick="switchTab('cart')" style="width:100%;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);padding:13px;font-size:15px;font-weight:700;cursor:pointer">
+        Checkout — ${SETTINGS.currency}${cartTotal() + Math.round(cartTotal() * SETTINGS.taxPct / 100)}
+      </button>
+    </div>` : `
+    <div class="sec-title">Cart</div>
+    <div style="padding:12px 16px;font-size:13px;color:var(--text3)">Scan a product to add it here</div>`;
+
+  document.getElementById('content').innerHTML = `
+    <div class="scanner-box" id="scanner-box">
+      <video id="scanner-video" playsinline muted autoplay></video>
+      <div class="scan-overlay">
+        <div class="scan-frame">
+          <div class="scan-corner sc-tl"></div>
+          <div class="scan-corner sc-tr"></div>
+          <div class="scan-corner sc-bl"></div>
+          <div class="scan-corner sc-br"></div>
+          <div class="scan-line"></div>
+        </div>
+      </div>
+      <div class="scan-tip" id="scan-tip">Camera দিয়ে barcode scan করুন</div>
+      <div class="scan-toast" id="scan-toast"></div>
+    </div>
+    <div class="scan-controls">
+      <button class="scan-btn ${torchOn ? 'torch-on' : ''}" id="torch-btn" onclick="toggleTorch()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M8 6l8 8-2 6-4-4-4 4-2-6 8-8z"/></svg>
+        Torch
+      </button>
+      <button class="scan-btn" onclick="switchTab('products')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        Products
+      </button>
+    </div>
+    <div class="manual-wrap">
+      <label>Manual barcode entry</label>
+      <div class="manual-row">
+        <input type="text" id="manual-bc" placeholder="Barcode number type করুন..." inputmode="numeric" />
+        <button onclick="manualLookup()">Search</button>
+      </div>
+    </div>
+    ${miniCart}`;
+}
+
+function startScanner() {
+  if (!window.ZXing) { updateScanTip('Scanner loading...'); return; }
+  if (scanning) return;
+  try {
+    codeReader = new ZXing.BrowserMultiFormatReader();
+    codeReader.listVideoInputDevices().then(devices => {
+      if (!devices || devices.length === 0) { updateScanTip('Camera পাওয়া যায়নি। Manual entry ব্যবহার করুন।'); return; }
+      const cam = devices.find(d => /(back|rear|environment)/i.test(d.label)) || devices[devices.length - 1];
+      scanning = true;
+      codeReader.decodeFromVideoDevice(cam.deviceId, 'scanner-video', (result, err) => {
+        if (result && !scanCooldown) {
+          scanCooldown = true;
+          const code = result.getText();
+          lookupAndAdd(code);
+          setTimeout(() => { scanCooldown = false; }, 2000);
+        }
+      });
+      updateScanTip('Barcode টি frame-এর ভেতরে ধরুন');
+    }).catch(() => updateScanTip('Camera permission দিন এবং reload করুন'));
+  } catch (e) { console.error(e); }
+}
+
+function stopScanner() {
+  if (codeReader) { try { codeReader.reset(); } catch (e) {} codeReader = null; }
+  scanning = false;
+}
+
+function toggleTorch() {
+  torchOn = !torchOn;
+  const btn = document.getElementById('torch-btn');
+  if (btn) btn.className = 'scan-btn' + (torchOn ? ' torch-on' : '');
+  const video = document.getElementById('scanner-video');
+  if (video && video.srcObject) {
+    const track = video.srcObject.getVideoTracks()[0];
+    if (track) track.applyConstraints({ advanced: [{ torch: torchOn }] }).catch(() => {});
+  }
+}
+
+function updateScanTip(msg) {
+  const t = document.getElementById('scan-tip');
+  if (t) t.textContent = msg;
+}
+
+function showScanToast(msg, ok) {
+  const t = document.getElementById('scan-toast');
+  if (!t) return;
+  t.textContent = (ok ? '✓ ' : '✗ ') + msg;
+  t.className = 'scan-toast show ' + (ok ? 'ok' : 'miss');
+  setTimeout(() => { if (t) t.className = 'scan-toast'; }, 2000);
+}
+
+function lookupAndAdd(code) {
+  const p = products.find(x => x.barcode === code.trim());
+  if (p) { addToCart(p); showScanToast(`${p.name} — ₹${p.price}`, true); renderScanner(); }
+  else { showScanToast(`Product পাওয়া যায়নি: ${code}`, false); }
+}
+
+function manualLookup() {
+  const code = document.getElementById('manual-bc').value.trim();
+  if (!code) return;
+  lookupAndAdd(code);
+}
+
+/* ===== PRODUCTS ===== */
+async function renderProducts() {
+  document.getElementById('content').innerHTML = `<div class="loader"><div class="spinner"></div></div>`;
+  try {
+    products = await DB.getProducts();
+  } catch (e) {
+    showToast('Supabase থেকে data load হয়নি', 'err');
+  }
+  const filtered = searchQ
+    ? products.filter(p => p.name.toLowerCase().includes(searchQ.toLowerCase()) || (p.barcode || '').includes(searchQ))
+    : products;
+
+  let html = `
+    <div class="search-wrap">
+      <div class="search-inner">
+        <svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" placeholder="নাম বা barcode দিয়ে খুঁজুন..." value="${searchQ}" oninput="searchQ=this.value;renderProducts()" />
+      </div>
+    </div>
+    <div class="prod-grid">`;
+
+  filtered.forEach(p => {
+    const q = cartQty(p.id);
+    const safeP = JSON.stringify(p).replace(/"/g, '&quot;');
+    html += `<div class="prod-card" onclick="addToCart(${safeP});this.querySelector('.qty-badge')&&(this.querySelector('.qty-badge').textContent=${q+1}||render())">
+      <span class="prod-emoji">${p.emoji || '📦'}</span>
+      <div class="prod-name">${p.name}</div>
+      <div class="prod-price">₹${p.price}</div>
+      <div class="prod-stock">${p.stock} in stock</div>
+      ${p.barcode ? `<div class="prod-bc">${p.barcode}</div>` : ''}
+      ${q > 0 ? `<div class="qty-badge">${q}</div>` : ''}
+    </div>`;
+  });
+  html += `</div>`;
+  document.getElementById('content').innerHTML = html;
+
+  const fab = document.createElement('button');
+  fab.className = 'fab';
+  fab.title = 'Add product';
+  fab.innerHTML = `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`;
+  fab.onclick = showAddModal;
+  document.querySelector('.app').appendChild(fab);
+}
+
+function showAddModal() {
+  const old = document.getElementById('add-modal');
+  if (old) old.remove();
+  const emojis = ['📦','🌾','🥛','🍞','🥚','🍬','🫙','🍵','🍎','🥤','🧴','🧹','🧀','🍫','🥩','🫒'];
+  document.querySelector('.app').insertAdjacentHTML('beforeend', `
+    <div class="modal-bg" id="add-modal" onclick="if(event.target===this)this.remove()">
+      <div class="modal-sheet">
+        <div class="modal-handle"></div>
+        <div class="modal-title">নতুন product যোগ করুন</div>
+        <div class="form-group"><label>Product নাম *</label><input id="np-name" placeholder="যেমন: Biscuits" /></div>
+        <div class="form-row">
+          <div class="form-group"><label>দাম (₹) *</label><input id="np-price" type="number" placeholder="0" inputmode="decimal"/></div>
+          <div class="form-group"><label>Stock পরিমাণ</label><input id="np-stock" type="number" placeholder="0" inputmode="numeric"/></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Barcode</label><input id="np-barcode" placeholder="optional" inputmode="numeric"/></div>
+          <div class="form-group"><label>Icon</label>
+            <select id="np-emoji">${emojis.map(e => `<option value="${e}">${e}</option>`).join('')}</select>
+          </div>
+        </div>
+        <button class="modal-save" onclick="saveProduct()">Supabase-এ Save করুন</button>
+      </div>
+    </div>`);
+}
+
+async function saveProduct() {
+  const name = document.getElementById('np-name').value.trim();
+  const price = parseFloat(document.getElementById('np-price').value) || 0;
+  const stock = parseInt(document.getElementById('np-stock').value) || 0;
+  const barcode = document.getElementById('np-barcode').value.trim();
+  const emoji = document.getElementById('np-emoji').value;
+  if (!name || !price) { showToast('নাম ও দাম দেওয়া আবশ্যক', 'err'); return; }
+
+  const btn = document.querySelector('.modal-save');
+  btn.textContent = 'Saving...';
+  btn.disabled = true;
+
+  try {
+    await DB.addProduct({ name, price, stock, barcode, emoji });
+    document.getElementById('add-modal').remove();
+    showToast(`${name} Supabase-এ save হয়েছে!`, 'ok');
+    await renderProducts();
+  } catch (e) {
+    showToast('Save হয়নি। Internet check করুন।', 'err');
+    btn.textContent = 'Supabase-এ Save করুন';
+    btn.disabled = false;
+  }
+}
+
+/* ===== CART ===== */
+function renderCart() {
+  if (cart.length === 0) {
+    document.getElementById('content').innerHTML = `
+      <div class="empty-state">
+        <svg viewBox="0 0 24 24" fill="none"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg>
+        <p>Cart খালি</p>
+        <small>Scan করুন বা Products থেকে add করুন</small>
+        <button class="go-scan-btn" onclick="switchTab('scan')">Scanner খুলুন</button>
+      </div>`;
+    return;
+  }
+  const sub = cartTotal(), tax = Math.round(sub * SETTINGS.taxPct / 100), total = sub + tax;
+  let html = `<div class="cart-header"><p>${cartCount()} টি item</p></div>`;
+  cart.forEach(i => {
+    html += `<div class="cart-item">
+      <span style="font-size:28px">${i.emoji || '📦'}</span>
+      <div class="ci-info">
+        <div class="ci-name">${i.name}</div>
+        <div class="ci-price">₹${i.price} × ${i.qty} = ₹${i.price * i.qty}</div>
+      </div>
+      <div class="qty-ctrl">
+        <button class="qbtn" onclick="removeFromCart(${i.id})">−</button>
+        <span class="qnum">${i.qty}</span>
+        <button class="qbtn" onclick="addToCart(${JSON.stringify(i).replace(/"/g,'&quot;')})">+</button>
+      </div>
+    </div>`;
+  });
+  html += `<div class="summary">
+    <div class="sum-row"><span>Subtotal</span><span>₹${sub}</span></div>
+    <div class="sum-row"><span>GST (${SETTINGS.taxPct}%)</span><span>₹${tax}</span></div>
+    <div class="sum-total"><span>Total</span><span>₹${total}</span></div>
+    <button class="checkout-btn" onclick="showReceipt=true;render()">Checkout — ₹${total}</button>
+  </div>`;
+  document.getElementById('content').innerHTML = html;
+}
+
+/* ===== RECEIPT ===== */
+function renderReceipt() {
+  const sub = cartTotal(), tax = Math.round(sub * SETTINGS.taxPct / 100), total = sub + tax;
+  const inv = 'INV-' + Math.floor(Math.random() * 9000 + 1000);
+  const dt = new Date().toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const rows = cart.map(i => `<div class="r-row"><span>${i.emoji || ''} ${i.name} ×${i.qty}</span><span>₹${i.price * i.qty}</span></div>`).join('');
+  document.getElementById('content').innerHTML = `
+    <div class="receipt-success">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+      <p>Payment সফল হয়েছে!</p>
+    </div>
+    <div class="receipt-card">
+      <div class="rh">
+        <h2>${SETTINGS.shopName}</h2>
+        <p>${SETTINGS.address} · ${SETTINGS.phone}</p>
+        <small>${inv} · ${dt}</small>
+      </div>
+      ${rows}
+      <div class="r-row" style="margin-top:6px"><span>Subtotal</span><span>₹${sub}</span></div>
+      <div class="r-row"><span>GST (${SETTINGS.taxPct}%)</span><span>₹${tax}</span></div>
+      <div class="r-total"><span>Total</span><span>₹${total}</span></div>
+      <div class="r-footer">${SETTINGS.shopName}-এ আসার জন্য ধন্যবাদ!${SETTINGS.gst ? `<br>GST: ${SETTINGS.gst}` : ''}</div>
+    </div>
+    <button class="new-sale-btn" onclick="cart=[];showReceipt=false;switchTab('scan')">নতুন sale শুরু করুন</button>`;
+}
+
+/* ===== SETTINGS ===== */
+function renderSettings() {
+  document.getElementById('content').innerHTML = `
+    <div class="cloud-status"><div class="cloud-dot"></div> Supabase cloud-এ connected</div>
+    <div class="sec-title">Shop details</div>
+    <div class="settings-group">
+      <div class="settings-row" onclick="editSetting('shopName','Shop নাম','${SETTINGS.shopName}')">
+        <div class="sr-icon ic-blue"><svg viewBox="0 0 24 24" fill="none"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>
+        <div class="sr-text"><h3>Shop নাম</h3><p>${SETTINGS.shopName}</p></div>
+        <div class="sr-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="9 18 15 12 9 6"/></svg></div>
+      </div>
+      <div class="settings-row" onclick="editSetting('shopAddress','ঠিকানা','${SETTINGS.address}')">
+        <div class="sr-icon ic-blue"><svg viewBox="0 0 24 24" fill="none"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg></div>
+        <div class="sr-text"><h3>ঠিকানা</h3><p>${SETTINGS.address}</p></div>
+        <div class="sr-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="9 18 15 12 9 6"/></svg></div>
+      </div>
+      <div class="settings-row" onclick="editSetting('shopPhone','Phone নম্বর','${SETTINGS.phone}')">
+        <div class="sr-icon ic-blue"><svg viewBox="0 0 24 24" fill="none"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.9 9.81a19.79 19.79 0 01-3.07-8.67A2 2 0 012.81 1h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L7.09 8.91a16 16 0 006 6l.97-.97a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg></div>
+        <div class="sr-text"><h3>Phone নম্বর</h3><p>${SETTINGS.phone}</p></div>
+        <div class="sr-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="9 18 15 12 9 6"/></svg></div>
+      </div>
+    </div>
+    <div class="sec-title">Tax</div>
+    <div class="settings-group">
+      <div class="settings-row" onclick="editSetting('taxPct','GST % (যেমন: 5)','${SETTINGS.taxPct}')">
+        <div class="sr-icon ic-orange"><svg viewBox="0 0 24 24" fill="none"><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg></div>
+        <div class="sr-text"><h3>GST হার</h3><p>${SETTINGS.taxPct}%</p></div>
+        <div class="sr-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="9 18 15 12 9 6"/></svg></div>
+      </div>
+      <div class="settings-row" onclick="editSetting('shopGST','GST নম্বর','${SETTINGS.gst}')">
+        <div class="sr-icon ic-orange"><svg viewBox="0 0 24 24" fill="none"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+        <div class="sr-text"><h3>GST নম্বর</h3><p>${SETTINGS.gst || 'Set করা হয়নি'}</p></div>
+        <div class="sr-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="9 18 15 12 9 6"/></svg></div>
+      </div>
+    </div>
+    <div class="sec-title">Data</div>
+    <div class="settings-group">
+      <div class="settings-row">
+        <div class="sr-icon ic-green"><svg viewBox="0 0 24 24" fill="none"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg></div>
+        <div class="sr-text"><h3>Supabase cloud</h3><p>${products.length} টি product save আছে</p></div>
+      </div>
+      <div class="settings-row" onclick="if(confirm('সব product delete করবেন?'))clearAllProducts()">
+        <div class="sr-icon ic-red"><svg viewBox="0 0 24 24" fill="none"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg></div>
+        <div class="sr-text"><h3>সব product মুছুন</h3><p>Supabase থেকে সব delete হবে</p></div>
+        <div class="sr-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="9 18 15 12 9 6"/></svg></div>
+      </div>
+    </div>`;
+}
+
+function editSetting(key, label, current) {
+  const val = prompt(label + ':', current);
+  if (val === null) return;
+  SETTINGS[key === 'shopAddress' ? 'address' : key === 'shopPhone' ? 'phone' : key === 'shopGST' ? 'gst' : key] = val;
+  localStorage.setItem(key, val);
+  renderSettings();
+  showToast('Saved!', 'ok');
+}
+
+async function clearAllProducts() {
+  try {
+    await api('DELETE', 'products?id=gt.0');
+    products = [];
+    showToast('সব product delete হয়েছে', 'ok');
+    renderSettings();
+  } catch (e) { showToast('Delete হয়নি', 'err'); }
+}
+
+/* ===== INIT ===== */
+async function init() {
+  try {
+    products = await DB.getProducts();
+    showToast(`${products.length} products loaded`, 'ok');
+  } catch (e) {
+    showToast('Supabase connect হয়নি', 'err');
+  }
+  await render();
+  setTimeout(startScanner, 400);
+}
+
+init();
+</script>
+</body>
+</html>
