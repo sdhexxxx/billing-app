@@ -259,7 +259,6 @@ const SETTINGS = {
   taxPct: parseFloat(localStorage.getItem('taxPct') || '5'),
 };
 
-// Function to generate professional beep sound using Web Audio API
 function playBeep() {
   try {
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -267,14 +266,14 @@ function playBeep() {
     const gainNode = audioCtx.createGain();
 
     oscillator.type = 'sine';
-    oscillator.frequency.setValueAtTime(1200, audioCtx.currentTime); // Standard POS Scanner Frequency
-    gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime); // Standard Volume Level
+    oscillator.frequency.setValueAtTime(1200, audioCtx.currentTime);
+    gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
 
     oscillator.connect(gainNode);
     gainNode.connect(audioCtx.destination);
 
     oscillator.start();
-    oscillator.stop(audioCtx.currentTime + 0.08); // 80 milliseconds short beep
+    oscillator.stop(audioCtx.currentTime + 0.08);
   } catch (e) {
     console.error("Audio beep failed to play:", e);
   }
@@ -295,7 +294,7 @@ function addToCart(p, triggerSound = false) {
   if (ex) ex.qty++;
   else cart.push({ ...p, qty: 1 });
   
-  if (triggerSound) playBeep(); // Trigger sound on successful addition
+  if (triggerSound) playBeep();
   
   updateCartBadge();
   if (currentTab !== 'scan' && currentTab !== 'products') render();
@@ -416,7 +415,16 @@ function startScanner() {
   if (!window.ZXing) { updateScanTip('Scanner loading...'); return; }
   if (scanning) return;
   try {
-    codeReader = new ZXing.BrowserMultiFormatReader();
+    // Restricting formats specifically to standard retail types to eliminate misreads
+    const hints = new Map();
+    const formats = [
+      ZXing.BarcodeFormat.EAN_13,
+      ZXing.BarcodeFormat.EAN_8,
+      ZXing.BarcodeFormat.CODE_128
+    ];
+    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, formats);
+
+    codeReader = new ZXing.BrowserMultiFormatReader(hints);
     codeReader.listVideoInputDevices().then(devices => {
       if (!devices || devices.length === 0) { updateScanTip('Camera পাওয়া যায়নি। Manual entry ব্যবহার করুন।'); return; }
       const cam = devices.find(d => /(back|rear|environment)/i.test(d.label)) || devices[devices.length - 1];
@@ -466,7 +474,7 @@ function showScanToast(msg, ok) {
 function lookupAndAdd(code) {
   const p = products.find(x => x.barcode === code.trim());
   if (p) { 
-    const added = addToCart(p, true); // Play beep when scanned successfully
+    const added = addToCart(p, true); 
     if (added) {
       showScanToast(`${p.name} — ₹${p.price}`, true); 
       renderScanner(); 
