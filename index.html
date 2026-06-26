@@ -415,7 +415,6 @@ function startScanner() {
   if (!window.ZXing) { updateScanTip('Scanner loading...'); return; }
   if (scanning) return;
   try {
-    // Restricting formats specifically to standard retail types to eliminate misreads
     const hints = new Map();
     const formats = [
       ZXing.BarcodeFormat.EAN_13,
@@ -429,7 +428,18 @@ function startScanner() {
       if (!devices || devices.length === 0) { updateScanTip('Camera পাওয়া যায়নি। Manual entry ব্যবহার করুন।'); return; }
       const cam = devices.find(d => /(back|rear|environment)/i.test(d.label)) || devices[devices.length - 1];
       scanning = true;
-      codeReader.decodeFromVideoDevice(cam.deviceId, 'scanner-video', (result, err) => {
+
+      // Forced High-Resolution and Continuous Focus constraints for accurate scanning
+      const constraints = {
+        video: {
+          deviceId: { exact: cam.deviceId },
+          width: { min: 1280, ideal: 1920, max: 2560 },
+          height: { min: 720, ideal: 1080, max: 1440 },
+          focusMode: { ideal: 'continuous' }
+        }
+      };
+
+      codeReader.decodeFromConstraints(constraints, 'scanner-video', (result, err) => {
         if (result && !scanCooldown) {
           scanCooldown = true;
           const code = result.getText();
@@ -438,7 +448,10 @@ function startScanner() {
         }
       });
       updateScanTip('Barcode টি frame-এর ভেতরে ধরুন');
-    }).catch(() => updateScanTip('Camera permission দিন এবং reload করুন'));
+    }).catch((e) => {
+      console.error(e);
+      updateScanTip('Camera permission দিন এবং reload করুন');
+    });
   } catch (e) { console.error(e); }
 }
 
