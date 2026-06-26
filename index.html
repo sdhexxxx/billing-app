@@ -426,10 +426,11 @@ function startScanner() {
     codeReader = new ZXing.BrowserMultiFormatReader(hints);
     codeReader.listVideoInputDevices().then(devices => {
       if (!devices || devices.length === 0) { updateScanTip('Camera পাওয়া যায়নি। Manual entry ব্যবহার করুন।'); return; }
-      const cam = devices.find(d => /(back|rear|environment)/i.test(d.label)) || devices[devices.length - 1];
+      
+      // Fixed Back Camera Filtering Logic
+      const cam = devices.find(d => /(back|rear|environment|main)/i.test(d.label)) || devices[devices.length - 1];
       scanning = true;
 
-      // Forced High-Resolution and Continuous Focus constraints for accurate scanning
       const constraints = {
         video: {
           deviceId: { exact: cam.deviceId },
